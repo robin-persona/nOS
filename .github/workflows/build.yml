@@ -36,10 +36,11 @@ jobs:
           file nOS.bin
           file nOS.iso
 
-      - name: Smoke-test boot in QEMU (headless, timed)
+      - name: Smoke-test boot in QEMU (headless, timed, serial captured)
         run: |
-          timeout 15s qemu-system-i386 -cdrom nOS.iso -m 128M -display none -serial stdio || true
-          echo "QEMU smoke test finished (timeout is expected since kernel halts in a loop)."
+          timeout 15s qemu-system-i386 -cdrom nOS.iso -m 128M -display none -serial file:serial.log || true
+          echo "--- Serial output ---"
+          cat serial.log || true
 
       - name: Upload kernel binary
         uses: actions/upload-artifact@v4
@@ -53,4 +54,11 @@ jobs:
         with:
           name: nOS-iso
           path: nOS.iso
+          retention-days: 30
+
+      - name: Upload serial debug log
+        uses: actions/upload-artifact@v4
+        with:
+          name: nOS-serial-log
+          path: serial.log
           retention-days: 30

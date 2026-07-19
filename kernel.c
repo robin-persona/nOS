@@ -1,8 +1,14 @@
-// kernel.c - nOS Kernel Entry Point (Phase 1)
-// Initializes framebuffer and paints Windows 7 blue background
+// kernel.c - nOS Kernel Entry Point (Phase 2)
+// Adds GDT, IDT, interrupt handling, PS/2 keyboard + mouse drivers.
 
 #include <stdint.h>
 #include <stddef.h>
+#include "gdt.h"
+#include "idt.h"
+#include "isr.h"
+#include "keyboard.h"
+#include "mouse.h"
+#include "serial.h"
 
 // Multiboot magic number
 #define MULTIBOOT_MAGIC 0x2BADB002
@@ -60,9 +66,8 @@ void *memset(void *dst, int c, size_t n) {
 
 // Initialize framebuffer from Multiboot info
 int framebuffer_init(struct multiboot_info *mbi) {
-    // Check if framebuffer info is available (bit 12 of flags)
     if (!(mbi->flags & (1 << 12))) {
-        return -1; // No framebuffer info
+        return -1;
     }
 
     framebuffer = (uint32_t *)(uintptr_t)mbi->framebuffer_addr;
@@ -71,7 +76,6 @@ int framebuffer_init(struct multiboot_info *mbi) {
     fb_pitch = mbi->framebuffer_pitch;
     fb_bpp = mbi->framebuffer_bpp;
 
-    // Verify we got a valid framebuffer
     if (framebuffer == NULL || fb_width == 0 || fb_height == 0) {
         return -1;
     }
@@ -79,7 +83,6 @@ int framebuffer_init(struct multiboot_info *mbi) {
     return 0;
 }
 
-// Fill the entire screen with a color
 void clear_screen(uint32_t color) {
     if (framebuffer == NULL) return;
 
@@ -89,7 +92,6 @@ void clear_screen(uint32_t color) {
     }
 }
 
-// Draw a single pixel (for future use)
 void put_pixel(uint32_t x, uint32_t y, uint32_t color) {
     if (x >= fb_width || y >= fb_height) return;
     framebuffer[y * fb_width + x] = color;
@@ -97,27 +99,38 @@ void put_pixel(uint32_t x, uint32_t y, uint32_t color) {
 
 // Kernel main function
 void kernel_main(uint32_t magic, struct multiboot_info *mbi) {
-    // Verify Multiboot magic number
     if (magic != MULTIBOOT_MAGIC) {
-        // Invalid boot - halt
-        while (1) {
-            __asm__ volatile ("hlt");
-        }
+        while (1) { __asm__ volatile ("hlt"); }
     }
 
-    // Initialize framebuffer
     if (framebuffer_init(mbi) != 0) {
-        // Framebuffer init failed - halt
-        while (1) {
-            __asm__ volatile ("hlt");
-        }
+        while (1) { __asm__ volatile ("hlt"); }
     }
 
-    // Paint the screen Windows 7 Blue
     clear_screen(WIN7_BLUE);
 
-    // Kernel initialization complete
-    // Hang indefinitely
+    // --- Phase 2: Interrupts & Input ---
+    serial_init();
+    serial_write("\n=== nOS Phase 2: Interrupts & Input ===\n");
+
+    gdt_install();
+    serial_write("[OK] GDT installed\n");
+
+    idt_install();
+    serial_write("[OK] IDT installed\n");
+
+    isr_install();
+    serial_write("[OK] ISRs/IRQs installed, PIC remapped\n");
+
+    keyboard_init();
+    serial_write("[OK] Keyboard driver initialized (IRQ1)\n");
+
+    mouse_init();
+    serial_write("[OK] Mouse driver initialized (IRQ12)\n");
+
+    __asm__ volatile ("sti");
+    serial_write("[OK] Interrupts enabled - type on keyboard or move mouse!\n\n");
+
     while (1) {
         __asm__ volatile ("hlt");
     }
