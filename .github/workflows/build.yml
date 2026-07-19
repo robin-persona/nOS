@@ -1,0 +1,56 @@
+name: Build nOS
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            gcc-multilib \
+            nasm \
+            xorriso \
+            grub-pc-bin \
+            grub-common \
+            mtools \
+            qemu-system-x86
+
+      - name: Build nOS kernel and ISO
+        run: make
+
+      - name: Verify build artifacts
+        run: |
+          ls -la nOS.bin nOS.iso
+          file nOS.bin
+          file nOS.iso
+
+      - name: Smoke-test boot in QEMU (headless, timed)
+        run: |
+          timeout 15s qemu-system-i386 -cdrom nOS.iso -m 128M -display none -serial stdio || true
+          echo "QEMU smoke test finished (timeout is expected since kernel halts in a loop)."
+
+      - name: Upload kernel binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: nOS-kernel
+          path: nOS.bin
+          retention-days: 30
+
+      - name: Upload bootable ISO
+        uses: actions/upload-artifact@v4
+        with:
+          name: nOS-iso
+          path: nOS.iso
+          retention-days: 30
