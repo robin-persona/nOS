@@ -1,4 +1,4 @@
-; isr.s - Low-level ISR/IRQ stubs. Each pushes an interrupt number
+; isr_stubs.s - Low-level ISR/IRQ stubs. Each pushes an interrupt number
 ; (and a dummy error code if the CPU doesn't push one itself) then
 ; jumps to a common stub that calls into C.
 

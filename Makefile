@@ -10,8 +10,10 @@ ASFLAGS = -f elf32
 CFLAGS = -m32 -ffreestanding -O2 -Wall -Wextra -fno-exceptions -fno-stack-protector -nostdlib -nostartfiles -Iinclude
 LDFLAGS = -m elf_i386 -T linker.ld
 
-# Source files (boot.s must link first so the Multiboot header lands early)
-ASM_SRC = boot.s gdt_flush.s idt_flush.s isr.s
+# Source files (boot.s must link first so the Multiboot header lands early).
+# NOTE: the assembly ISR stubs live in isr_stubs.s (not isr.s) so they don't
+# collide with isr.c -> isr.o during compilation.
+ASM_SRC = boot.s gdt_flush.s idt_flush.s isr_stubs.s
 C_SRC = kernel.c gdt.c idt.c isr.c pic.c keyboard.c mouse.c serial.c
 
 # Object files
